@@ -3250,7 +3250,7 @@ async function loadAllFromSupabase() {
       _sb.from('leave_entries').select('*'),
       _sb.from('new_staff').select('*'),
       _sb.from('row_orders').select('*'),
-      _sb.from('duty_overrides').select('*'),
+      _sb.from('duty_overrides').select('*').limit(10000),
       _sb.from('deleted_staff').select('*'),
       _sb.from('bold_cells').select('*'),
       _sb.from('extended_leaves').select('*'),

@@ -3308,35 +3308,50 @@ async function loadAllFromSupabase() {
 }
 
 // ── Targeted save helpers ──────────────────────────────────
+function _sbErr(fn, res) {
+  if (res && res.error) {
+    console.error('[Supabase][' + fn + '] ERROR:', JSON.stringify(res.error));
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:16px;right:16px;background:#dc2626;color:#fff;padding:10px 16px;border-radius:8px;font-size:12px;z-index:99999;max-width:340px;box-shadow:0 4px 16px rgba(0,0,0,.2);font-family:sans-serif;';
+    t.textContent = '\u26a0 Save failed (' + fn + '): ' + (res.error.message || res.error.code || 'unknown error');
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 7000);
+  }
+}
+
 async function saveStaffEdit(unit, sno) {
   const e = staffEdits[unit + '-' + sno] || {};
-  await _sb.from('staff_edits').upsert({
+  const res = await _sb.from('staff_edits').upsert({
     unit, sno,
     name: e.name || null, desig: e.desig || null, unit_move: e.unit || null,
     staff_id: e.id || null,
     join_date: e.join || null, sep_date: e.sep_date || null,
     sep_remarks: e.sep_remarks || null, updated_at: new Date().toISOString()
   }, { onConflict: 'unit,sno' });
+  _sbErr('saveStaffEdit', res);
 }
 
 async function saveLeaveEntries(unit, sno) {
   const entries = leaveOverlay[unit + '-' + sno] || [];
-  await _sb.from('leave_entries').delete().eq('unit', unit).eq('sno', sno);
+  const r1 = await _sb.from('leave_entries').delete().eq('unit', unit).eq('sno', sno);
+  _sbErr('saveLeaveEntries/delete', r1);
   if (entries.length > 0) {
-    await _sb.from('leave_entries').insert(
+    const r2 = await _sb.from('leave_entries').insert(
       entries.map(e => ({ unit, sno, from_serial: e.from, to_serial: e.to, leave_type: e.type, remarks: e.remarks || null }))
     );
+    _sbErr('saveLeaveEntries/insert', r2);
   }
 }
 
 async function saveNewStaff(sno) {
   const s = newStaffList.find(x => x.sno === sno);
-  if (!s) { await _sb.from('new_staff').delete().eq('sno', sno); return; }
-  await _sb.from('new_staff').upsert({
+  if (!s) { const r = await _sb.from('new_staff').delete().eq('sno', sno); _sbErr('saveNewStaff/delete', r); return; }
+  const res = await _sb.from('new_staff').upsert({
     sno: s.sno, name: s.name, desig: s.desig, staff_id: s.id || null,
     unit: s.unit, join_date: s.join || null,
     sep_date: s.sep_date || null, sep_remarks: s.sep_remarks || null
   }, { onConflict: 'sno' });
+  _sbErr('saveNewStaff', res);
 }
 
 async function saveRowOrdersForUnit(unit) {
@@ -3348,47 +3363,56 @@ async function saveRowOrdersForUnit(unit) {
       return { unit, sno, row_order: v, updated_at: new Date().toISOString() };
     });
   if (rows.length === 0) return;
-  await _sb.from('row_orders').upsert(rows, { onConflict: 'unit,sno' });
+  const res = await _sb.from('row_orders').upsert(rows, { onConflict: 'unit,sno' });
+  _sbErr('saveRowOrdersForUnit', res);
 }
 
 async function saveDutyOverride(unit, sno, serial) {
   const code = dutyOverlay[unit + '-' + sno + '-' + serial];
   if (code === undefined || code === null) {
-    await _sb.from('duty_overrides').delete().eq('unit', unit).eq('sno', sno).eq('day_serial', serial);
+    const r = await _sb.from('duty_overrides').delete().eq('unit', unit).eq('sno', sno).eq('day_serial', serial);
+    _sbErr('saveDutyOverride/delete', r);
     return;
   }
-  await _sb.from('duty_overrides').upsert(
+  const res = await _sb.from('duty_overrides').upsert(
     { unit, sno, day_serial: serial, duty_code: code, updated_at: new Date().toISOString() },
     { onConflict: 'unit,sno,day_serial' }
   );
+  _sbErr('saveDutyOverride', res);
 }
 
 async function saveDeletedStaffEntry(unit, sno) {
   if (deletedStaff[unit + '-' + sno]) {
-    await _sb.from('deleted_staff').upsert({ unit, sno }, { onConflict: 'unit,sno' });
+    const res = await _sb.from('deleted_staff').upsert({ unit, sno }, { onConflict: 'unit,sno' });
+    _sbErr('saveDeletedStaff/upsert', res);
   } else {
-    await _sb.from('deleted_staff').delete().eq('unit', unit).eq('sno', sno);
+    const res = await _sb.from('deleted_staff').delete().eq('unit', unit).eq('sno', sno);
+    _sbErr('saveDeletedStaff/delete', res);
   }
 }
 
 async function saveBoldCell(cellKey) {
   if (boldCells[cellKey]) {
-    await _sb.from('bold_cells').upsert({ cell_key: cellKey }, { onConflict: 'cell_key' });
+    const res = await _sb.from('bold_cells').upsert({ cell_key: cellKey }, { onConflict: 'cell_key' });
+    _sbErr('saveBoldCell/upsert', res);
   } else {
-    await _sb.from('bold_cells').delete().eq('cell_key', cellKey);
+    const res = await _sb.from('bold_cells').delete().eq('cell_key', cellKey);
+    _sbErr('saveBoldCell/delete', res);
   }
 }
 
 async function saveExtendedLeaves() {
-  await _sb.from('extended_leaves').delete().neq('id', '____none____');
+  const r1 = await _sb.from('extended_leaves').delete().neq('id', '____none____');
+  _sbErr('saveExtendedLeaves/delete', r1);
   if (LEAVES_DATA.length > 0) {
-    await _sb.from('extended_leaves').insert(
+    const r2 = await _sb.from('extended_leaves').insert(
       LEAVES_DATA.map(l => ({
         id: l.id, sno_ref: l._sno || null, orig_unit: l._origUnit || null,
         name: l.name, desig: l.desig, staff_id: l._id || null,
         leave_type: l.type, color: l.color || '#1a3a6b', remarks: l._remarks || null
       }))
     );
+    _sbErr('saveExtendedLeaves/insert', r2);
   }
 }
 

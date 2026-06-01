@@ -2996,8 +2996,8 @@
   </div>
   <div class="rota-scroll-wrap">
     <div class="rota-container" id="rotaContainer"></div>
+
   </div>
-  <div id="leaveGrid" style="display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;border-top:1px solid var(--border);background:var(--surface2);min-height:0;"></div>
 </div>
 
 <!-- STAFF VIEW -->
@@ -3250,7 +3250,7 @@ async function loadAllFromSupabase() {
       _sb.from('leave_entries').select('*'),
       _sb.from('new_staff').select('*'),
       _sb.from('row_orders').select('*'),
-      _sb.from('duty_overrides').select('*').limit(10000),
+      _sb.from('duty_overrides').select('*'),
       _sb.from('deleted_staff').select('*'),
       _sb.from('bold_cells').select('*'),
       _sb.from('extended_leaves').select('*'),
@@ -3384,10 +3384,8 @@ async function saveRowOrdersForUnit(unit) {
 
 async function saveDutyOverride(unit, sno, serial) {
   const code = dutyOverlay[unit + '-' + sno + '-' + serial];
-  console.log('[saveDutyOverride] unit=' + unit + ' sno=' + sno + ' serial=' + serial + ' code=' + code);
   if (code === undefined || code === null) {
     const r = await _sb.from('duty_overrides').delete().eq('unit', unit).eq('sno', sno).eq('day_serial', serial);
-    console.log('[saveDutyOverride] delete result:', JSON.stringify(r.error || 'OK'));
     _sbErr('saveDutyOverride/delete', r);
     return;
   }
@@ -3395,7 +3393,6 @@ async function saveDutyOverride(unit, sno, serial) {
     { unit, sno, day_serial: serial, duty_code: code, updated_at: new Date().toISOString() },
     { onConflict: 'unit,sno,day_serial' }
   );
-  console.log('[saveDutyOverride] upsert result:', JSON.stringify(res.error || 'OK'));
   _sbErr('saveDutyOverride', res);
 }
 
@@ -4024,17 +4021,6 @@ function renderRota() {
     }
   });
 
-  // Leaves section
-  const leaveGrid = document.getElementById('leaveGrid');
-  leaveGrid.innerHTML = LEAVES_DATA.map(l => `
-    <div class="leave-card">
-      <div class="leave-swatch" style="background:${l.color}"></div>
-      <div>
-        <div class="leave-name">${l.desig} ${l.name}</div>
-        <div class="leave-type">${l.type}</div>
-      </div>
-    </div>
-  `).join('');
 }
 
 function renderStaff() {

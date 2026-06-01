@@ -3384,8 +3384,10 @@ async function saveRowOrdersForUnit(unit) {
 
 async function saveDutyOverride(unit, sno, serial) {
   const code = dutyOverlay[unit + '-' + sno + '-' + serial];
+  console.log('[saveDutyOverride] unit=' + unit + ' sno=' + sno + ' serial=' + serial + ' code=' + code);
   if (code === undefined || code === null) {
     const r = await _sb.from('duty_overrides').delete().eq('unit', unit).eq('sno', sno).eq('day_serial', serial);
+    console.log('[saveDutyOverride] delete result:', JSON.stringify(r.error || 'OK'));
     _sbErr('saveDutyOverride/delete', r);
     return;
   }
@@ -3393,6 +3395,7 @@ async function saveDutyOverride(unit, sno, serial) {
     { unit, sno, day_serial: serial, duty_code: code, updated_at: new Date().toISOString() },
     { onConflict: 'unit,sno,day_serial' }
   );
+  console.log('[saveDutyOverride] upsert result:', JSON.stringify(res.error || 'OK'));
   _sbErr('saveDutyOverride', res);
 }
 

@@ -3256,6 +3256,21 @@ async function loadAllFromSupabase() {
       _sb.from('extended_leaves').select('*'),
     ]);
 
+  // Log any load errors visibly
+  const loadResults = {staff_edits:editsRes,leave_entries:leavesRes,new_staff:newStaffRes,row_orders:ordersRes,duty_overrides:dutyRes,deleted_staff:deletedRes,bold_cells:boldRes,extended_leaves:extLeavesRes};
+  let loadErrors = [];
+  Object.entries(loadResults).forEach(([tbl, res]) => {
+    if (res.error) { console.error('[Supabase][LOAD] ' + tbl + ':', JSON.stringify(res.error)); loadErrors.push(tbl + ': ' + (res.error.message || res.error.code)); }
+    else { console.log('[Supabase][LOAD] ' + tbl + ': ' + (res.data ? res.data.length : 0) + ' rows'); }
+  });
+  if (loadErrors.length > 0) {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:16px;right:16px;background:#b45309;color:#fff;padding:12px 16px;border-radius:8px;font-size:12px;z-index:99999;max-width:380px;box-shadow:0 4px 16px rgba(0,0,0,.2);font-family:sans-serif;line-height:1.6;';
+    t.innerHTML = '<b>\u26a0 Supabase load errors:</b><br>' + loadErrors.join('<br>');
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 12000);
+  }
+
   staffEdits = {};
   (editsRes.data || []).forEach(r => {
     staffEdits[r.unit + '-' + r.sno] = {
